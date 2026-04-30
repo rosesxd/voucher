@@ -68,11 +68,12 @@
         const info = document.getElementById('info').value;
 
         // Posicionamiento de los datos (ajusta estos números si salen movidos)
-        doc.text(loc, 170, 23);
-        doc.text(vouch, 105, 39);
-        doc.text(hotel, 75, 61);
-        doc.text(huesped, 75, 84);
-        doc.text(info, 75, 142);
+    
+doc.text(loc, 185, 26);      // Sube a la esquina del Localizador
+doc.text(vouch, 110, 48);    // Baja al renglón del Nº de Voucher
+doc.text(hotel, 80, 112);    // Baja al cuadro de "Nombre del hotel"
+doc.text(huesped, 80, 140);  // Baja al cuadro de "Reservación"
+doc.text(info, 80, 215);     // Baja al cuadro de "Info Adicional"
 
         // --- PÁGINA 2: POLÍTICAS 1 ---
         doc.addPage();
