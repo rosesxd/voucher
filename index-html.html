@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Generador de Vouchers - ADN Travels (Versión PDF)</title>
+    <!-- Librerías para PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --adn-blue: #3d5a6c; 
+            --adn-dark: #1d3546; 
+        }
+        body { font-family: 'Montserrat', sans-serif; background: #2c3e50; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+
+        /* Estilos del Editor */
+        .editor { background: white; padding: 20px; border-radius: 12px; width: 100%; max-width: 700px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .editor h2 { grid-column: span 2; margin: 0; color: var(--adn-blue); font-size: 18px; }
+        input, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: 'Montserrat', sans-serif; }
+        textarea { resize: vertical; min-height: 60px; }
+        .full-w { grid-column: span 2; }
+        button { grid-column: span 2; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 16px; transition: 0.3s; }
+        button:hover { background: #219150; }
+
+        /* Contenedor del Voucher */
+        #master-wrap { width: 794px; background: white; overflow: hidden; }
+
+        #voucher-canvas { 
+            width: 794px; 
+            min-height: 1123px; 
+            background: white; 
+            position: relative; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-banner { width: 100%; height: 120px; background-image: url('lol/fondo-arriba.jpg'); background-size: cover; position: relative; }
+        .header-shape { position: absolute; top: 100px; right: 0; width: 450px; height: 70px; background: var(--adn-dark); clip-path: polygon(10% 0%, 100% 0%, 100% 100%, 0% 100%, 8% 30%); display: flex; align-items: center; justify-content: flex-end; padding-right: 50px; color: white; z-index: 10; }
+        .logo-box { position: absolute; top: 40px; left: 40px; z-index: 20; }
+        .logo-box img { width: 160px; filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.2)); }
+        .title-section { text-align: center; margin-top: 80px; color: var(--adn-blue); }
+        .congrats-box { border: 2px solid var(--adn-blue); margin: 30px 60px; padding: 25px; text-align: center; font-size: 18px; line-height: 1.4; background: rgba(255,255,255,0.9); }
+        
+        .data-rows { margin: 10px 60px; flex-grow: 1; max-width: 670px; }
+        .row { display: flex; align-items: flex-start; margin-bottom: 8px; width: 100%; }
+        
+        /* FIX: Flechas compatibles con PDF usando bordes en lugar de clip-path */
+        .arrow { 
+            background: var(--adn-blue); 
+            color: white; 
+            width: 200px; 
+            height: 32px; /* Altura fija para control de bordes */
+            display: flex;
+            align-items: center;
+            padding-left: 20px; /* Evita que el texto se pegue a la izquierda */
+            font-size: 11px; 
+            font-weight: bold; 
+            position: relative;
+            flex-shrink: 0; 
+        }
+
+        .arrow::after {
+            content: '';
+            position: absolute;
+            right: -16px;
+            top: 0;
+            width: 0;
+            height: 0;
+            border-top: 16px solid transparent;
+            border-bottom: 16px solid transparent;
+            border-left: 16px solid var(--adn-blue);
+        }
+        
+        .value { 
+            margin-left: 35px; /* Espacio para la punta de la flecha */
+            font-size: 14px; 
+            color: #333; 
+            font-weight: 500; 
+            line-height: 1.4; 
+            white-space: pre-wrap; 
+            padding-top: 5px;
+            flex-grow: 1;
+        }
+
+        .footer { width: 100%; text-align: center; margin-top: auto; }
+        .signature { font-family: 'Caveat', cursive; font-size: 52px; color: var(--adn-dark); margin-bottom: -15px; position: relative; z-index: 2; }
+        .line-sep { border-top: 2px solid #94a3b8; margin: 0 60px 15px 60px; }
+        .contacts { display: flex; justify-content: center; gap: 35px; font-size: 13px; font-weight: bold; margin-bottom: 25px; }
+        .blue-info-bar { background: var(--adn-dark); color: white; padding: 20px 60px; text-align: left; font-size: 11px; line-height: 1.6; position: relative; overflow: hidden; }
+        .footer-logo-circle { position: absolute; right: -35px; bottom: -50px; width: 190px; height: 190px; border: 35px solid rgba(255,255,255,0.15); border-radius: 50%; }
+        .bottom-banner { width: 100%; height: 120px; background-image: url('lol/fondo-abajo.jpg'); background-size: cover; }
+
+        .policy-page { width: 794px; height: 1123px; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="editor">
+    <h2>📝 Configuración del Voucher (PDF Fix)</h2>
+    <input type="text" id="inLoc" placeholder="Localizador" oninput="update()">
+    <input type="text" id="inVouch" placeholder="Nº Voucher" oninput="update()">
+    <input type="text" id="inHotel" class="full-w" placeholder="Nombre del Hotel" oninput="update()">
+    <input type="text" id="inDir" class="full-w" placeholder="Dirección del Hotel" oninput="update()">
+    <input type="text" id="inTelHotel" class="full-w" placeholder="Teléfono del Hotel" oninput="update()">
+    <input type="text" id="inPax" class="full-w" placeholder="Nombre del Huésped" oninput="update()">
+    <input type="text" id="inEntrada" placeholder="Fecha de Entrada" oninput="update()">
+    <input type="text" id="inSalida" placeholder="Fecha de Salida" oninput="update()">
+    <textarea id="inPlan" class="full-w" placeholder="Plan obtenido..." oninput="update()"></textarea>
+    <input type="text" id="inTipoHab" class="full-w" placeholder="Tipo de habitación" oninput="update()">
+    <input type="text" id="inHabitaciones" class="full-w" placeholder="Habitaciones" oninput="update()">
+    <input type="text" id="inInfo" class="full-w" placeholder="Info. Adicional" oninput="update()">
+    <input type="text" id="inAsesor" class="full-w" placeholder="Tu Nombre" oninput="update()">
+    <input type="text" id="inMovil" class="full-w" placeholder="Tu número de móvil" oninput="update()">
+    <button onclick="descargarPDF()">📥 DESCARGAR VOUCHER COMPLETO (PDF)</button>
+</div>
+
+<div id="master-wrap">
+    <div id="voucher-canvas">
+        <div class="top-banner"></div>
+        <div class="logo-box"><img src="lol/logo.png"></div>
+        <div class="header-shape">
+            <div style="text-align: right;">
+                <span style="font-size: 11px; letter-spacing: 2px;">LOCALIZADOR</span><br>
+                <b id="vLoc" style="font-size: 18px;">Nº ----</b>
+            </div>
+        </div>
+        <div class="title-section">
+            <h3 style="font-weight: 400; font-size: 20px; letter-spacing: 1px;">VOUCHER DE ALOJAMIENTO Nº <span id="vVouch">----</span></h3>
+        </div>
+        <div class="congrats-box">
+            ¡Felicitaciones!. Para nosotros es un placer brindarle la mayor satisfacción, es nuestro deseo; por ello es acreedor de un servicio de calidad con sello <b>ADN GROUP, C.A.</b>
+        </div>
+        <div class="data-rows">
+            <div class="row"><div class="arrow">Nombre del hotel:</div><div class="value" id="vHotel">----</div></div>
+            <div class="row"><div class="arrow">Dirección:</div><div class="value" id="vDir">----</div></div>
+            <div class="row"><div class="arrow">Telefono:</div><div class="value" id="vTelHotel">----</div></div>
+            <div class="row"><div class="arrow">Reservación:</div><div class="value" id="vPax">----</div></div>
+            <div class="row"><div class="arrow">Fecha de entrada:</div><div class="value" id="vEntrada">----</div></div>
+            <div class="row"><div class="arrow">Check in:</div><div class="value">3:00 PM.</div></div>
+            <div class="row"><div class="arrow">Fecha de salida:</div><div class="value" id="vSalida">----</div></div>
+            <div class="row"><div class="arrow">Check out:</div><div class="value">12:00 PM.</div></div>
+            <div class="row"><div class="arrow">Plan obtenido:</div><div class="value" id="vPlan">----</div></div>
+            <div class="row"><div class="arrow">Tipo de habitación:</div><div class="value" id="vTipoHab">----</div></div>
+            <div class="row"><div class="arrow">Habitaciones:</div><div class="value" id="vHabitaciones">----</div></div>
+            <div class="row"><div class="arrow">Info. Adicional:</div><div class="value" id="vInfo">----</div></div>
+        </div>
+        <div class="footer">
+            <div class="signature" id="vAsesor">Firma del Asesor</div>
+            <div class="line-sep"></div>
+            <div class="contacts">
+                <span>📞 +58 424-816-74-74</span>
+                <span>☎️ +58 295-266-17-24</span>
+                <span id="vMovil">📱 +58 000 0000000</span>
+            </div>
+            <div class="blue-info-bar">
+                <div>✉️ Reservas@adntravels.group / Gerencia@adntravels.group</div>
+                <div>📍 Av. 4 de Mayo, C.C. Galerias Fente...</div>
+                <div class="footer-logo-circle"></div>
+            </div>
+        </div>
+        <div class="bottom-banner"></div>
+    </div>
+    <!-- Las políticas ahora son parte del mismo contenedor para el PDF -->
+    <img src="lol/politicas1.jpg" class="policy-page">
+    <img src="lol/politicas2.jpg" class="policy-page">
+</div>
+
+<script>
+    function update() {
+        document.getElementById('vLoc').innerText = "Nº " + document.getElementById('inLoc').value;
+        document.getElementById('vVouch').innerText = document.getElementById('inVouch').value;
+        document.getElementById('vHotel').innerText = document.getElementById('inHotel').value;
+        document.getElementById('vDir').innerText = document.getElementById('inDir').value;
+        document.getElementById('vTelHotel').innerText = document.getElementById('inTelHotel').value;
+        document.getElementById('vPax').innerText = document.getElementById('inPax').value;
+        document.getElementById('vEntrada').innerText = document.getElementById('inEntrada').value;
+        document.getElementById('vSalida').innerText = document.getElementById('inSalida').value;
+        document.getElementById('vPlan').innerText = document.getElementById('inPlan').value;
+        document.getElementById('vTipoHab').innerText = document.getElementById('inTipoHab').value;
+        document.getElementById('vHabitaciones').innerText = document.getElementById('inHabitaciones').value;
+        document.getElementById('vInfo').innerText = document.getElementById('inInfo').value;
+        document.getElementById('vAsesor').innerText = document.getElementById('inAsesor').value;
+        document.getElementById('vMovil').innerText = "📱 " + document.getElementById('inMovil').value;
+    }
+
+    async function descargarPDF() {
+        const { jsPDF } = window.jspdf;
+        const master = document.querySelector("#master-wrap");
+        
+        // Generamos el canvas con alta calidad
+        const canvas = await html2canvas(master, { 
+            scale: 2, 
+            useCORS: true,
+            logging: false,
+            letterRendering: true
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const doc = new jsPDF('p', 'pt', 'a4');
+        
+        // Dimensiones A4 en puntos
+        const pdfWidth = doc.internal.pageSize.getWidth();
+        const pdfHeight = doc.internal.pageSize.getHeight();
+        
+        // Calculamos cuántas páginas de alto tiene el master-wrap basado en el ancho A4
+        const imgProps = doc.getImageProperties(imgData);
+        const totalHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        let heightLeft = totalHeight;
+        let position = 0;
+
+        // Añadimos las páginas necesarias (Voucher + Políticas)
+        while (heightLeft > 0) {
+            doc.addImage(imgData, 'JPEG', 0, position, pdfWidth, totalHeight);
+            heightLeft -= pdfHeight;
+            position -= pdfHeight;
+            if (heightLeft > 0) doc.addPage();
+        }
+
+        doc.save(`Voucher-ADN-${document.getElementById('inPax').value || 'Travels'}.pdf`);
+    }
+</script>
+</body>
+</html>
