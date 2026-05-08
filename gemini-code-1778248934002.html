@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADN Travels - Panel de Control Pro v2.2</title>
+    <style>
+        /* --- RESET & BASE STYLES --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background-color: #12080d; 
+            color: #e0e0e0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* --- ANIMACIONES --- */
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 5px rgba(255, 0, 128, 0.2); } 50% { box-shadow: 0 0 15px rgba(255, 0, 128, 0.5); } 100% { box-shadow: 0 0 5px rgba(255, 0, 128, 0.2); } }
+        @keyframes slideInRight { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* --- LAYOUT & CONTAINERS --- */
+        .main-wrapper { width: 100%; max-width: 550px; animation: fadeInDown 0.6s ease-out; }
+        .nav-tabs { display: flex; gap: 2px; width: 100%; margin-bottom: -1px; position: relative; z-index: 1; }
+        .tab-btn { 
+            flex: 1; padding: 16px; border: 1px solid rgba(255,0,128,0.1); border-bottom: none; border-radius: 12px 12px 0 0; 
+            cursor: pointer; font-weight: bold; background: #2d1a22; color: #a08a94; font-size: 14px; text-transform: uppercase;
+            letter-spacing: 1px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;
+        }
+        .tab-btn:not(.active):hover { background: #3d242f; color: white; transform: translateY(-2px); }
+        .tab-btn.active { background: #26161e; color: white; border-color: rgba(255,0,128,0.3); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: #ff0080; box-shadow: 0 0 10px #ff0080; animation: slideInRight 0.3s ease-out; }
+
+        .container { background-color: #26161e; padding: 30px; border-radius: 0 0 15px 15px; width: 100%; box-shadow: 0 15px 35px rgba(0,0,0,0.7); border: 1px solid rgba(255,0,128,0.15); position: relative; }
+        .form-section { display: none; opacity: 0; }
+        .form-section.active { display: block; animation: fadeInUp 0.5s ease-out forwards; }
+        h2 { text-align: center; color: #ff0080; margin: 0 0 25px 0; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255, 0, 128, 0.5); }
+
+        /* --- ELEMENTS --- */
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-size: 11px; color: #c0aab5; margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .form-group:focus-within label { color: #ff0080; }
+        input, textarea, select { width: 100%; padding: 14px; border-radius: 8px; border: 2px solid #4a2b3a; background: #1a0d14; color: white; font-size: 14px; outline: none; transition: all 0.3s ease; }
+        input:focus, select:focus, textarea:focus { border-color: #ff0080; background: #201119; box-shadow: 0 0 10px rgba(255, 0, 128, 0.3); }
+        textarea { height: 80px; resize: none; }
+        .row { display: flex; gap: 15px; }
+        .row .form-group { flex: 1; }
+
+        /* --- OUTPUT & BUTTONS --- */
+        .output-box { margin-top: 25px; background: #0a0507; padding: 20px; border-radius: 10px; border: 1px dashed #800040; position: relative; }
+        .output-text { white-space: pre-wrap; font-size: 13px; color: #f0e2e8; line-height: 1.6; font-family: 'Consolas', 'Courier New', monospace; }
+        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+        button { border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s; }
+        .btn-copy { flex: 1; padding: 16px; background: #4a2b3a; color: white; }
+        .btn-wa { flex: 1; padding: 16px; background: #1bd741; color: #0b2e13; }
+        #toast { visibility: hidden; min-width: 200px; background-color: #ff0080; color: white; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 100; bottom: 30px; animation: pulseGlow 2s infinite; }
+        #toast.show { visibility: visible; animation: fadeInUp 0.4s ease-out; }
+
+        @media (max-width: 500px) { .row { flex-direction: column; gap: 0; } }
+    </style>
+</head>
+<body>
+
+    <div class="main-wrapper">
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab(event, 'voucher')">📄 VOUCHER</button>
+            <button class="tab-btn" onclick="switchTab(event, 'recibo')">💰 RECIBO</button>
+        </div>
+
+        <div class="container">
+            <div class="form-group" style="background: #1a0d14; padding: 15px; border-radius: 8px; border: 1px solid #800040;">
+                <label>Seleccionar Asesor</label>
+                <select id="asesorSel" onchange="updateAll()">
+                    <option value="Andres rodriguez|584226375994">Andres rodriguez</option>
+                    <option value="Adriana Ferrer|584161956155">Adriana Ferrer</option>
+                    <option value="Alexaida Arguinzones|584124440969">Alexaida Arguinzones</option>
+                    <option value="Anais Perez|584124442266">Anais Perez</option>
+                    <option value="Camila quijada|584124443266">Camila quijada</option>
+                    <option value="Dairianny Valdivieso|584124443311">Dairianny Valdivieso</option>
+                    <option value="Daniela Freire|584221005672">Daniela Freire</option>
+                    <option value="Dorianny Lugo|584248389614">Dorianny Lugo</option>
+                    <option value="Yovanna Rivas|584221005710">Yovanna Rivas</option>
+                    <option value="Georgina Marcano|584221005677">Georgina Marcano</option>
+                    <option value="Macgleidys Brito|584125559956">Macgleidys Brito</option>
+                    <option value="Ofelia Díaz|584126973473">Ofelia Díaz</option>
+                    <option value="Andreina Solano|584124449775">Andreina Solano</option>
+                    <option value="Wilvelys Gil|584221005700">Wilvelys Gil</option>
+                    <option value="Zathia Salazar|584221004467">Zathia Salazar</option>
+                </select>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid rgba(255,0,128,0.1); margin: 20px 0;">
+
+            <div id="tab-voucher" class="form-section active">
+                <h2>Solicitud de Voucher</h2>
+                <div class="form-group">
+                    <label>Hotel</label>
+                    <select id="vHotelSel" onchange="checkHotelManual(); genVoucher()">
+                        <option value="">-- Seleccionar Hotel --</option>
+                        <option value="COSTA CARIBE">COSTA CARIBE</option>
+                        <option value="GREMARY">GREMARY</option>
+                        <option value="JUMP N JIBE">JUMP N JIBE</option>
+                        <option value="LD ARIA">LD ARIA</option>
+                        <option value="LD H2O">LD H2O</option>
+                        <option value="LD LAGUNA">LD LAGUNA</option>
+                        <option value="LD MACANAO">LD MACANAO</option>
+                        <option value="LD SABBIA">LD SABBIA</option>
+                        <option value="LIDOTEL">LIDOTEL</option>
+                        <option value="MARGARITA VILLAGE">MARGARITA VILLAGE</option>
+                        <option value="SUNSOL ECOLAND">SUNSOL ECOLAND</option>
+                        <option value="SUNSOL ISLA CARIBE">SUNSOL ISLA CARIBE</option>
+                        <option value="SUNSOL PUNTA BLANCA">SUNSOL PUNTA BLANCA</option>
+                        <option value="SUNSOL UNIK">SUNSOL UNIK</option>
+                        <option value="TIBISAY">TIBISAY</option>
+                        <option value="VENETUR">VENETUR</option>
+                        <option value="MANUAL">-- OTRO (Manual) --</option>
+                    </select>
+                    <input type="text" id="vHotelManual" style="display:none; margin-top:10px;" placeholder="Nombre del hotel..." oninput="genVoucher()">
+                </div>
+                
+                <div class="form-group"><label>Pax Líder</label><input type="text" id="vPax" placeholder="Nombre completo" oninput="genVoucher()"></div>
+
+                <div class="row">
+                    <div class="form-group"><label>Localizador</label><input type="text" id="vLoc" placeholder="Código" oninput="genVoucher()"></div>
+                    <div class="form-group"><label>Teléfono Pax</label><input type="text" id="vTlf" placeholder="Ej: 0414..." oninput="genVoucher()"></div>
+                </div>
+                
+                <div class="row">
+                    <div class="form-group"><label>Entrada</label><input type="date" id="vIn" oninput="genVoucher()"></div>
+                    <div class="form-group"><label>Salida</label><input type="date" id="vOut" oninput="genVoucher()"></div>
+                </div>
+                
+                <div class="form-group"><label>Tipo Habitación</label><input type="text" id="vHab" value="Matrimonial" oninput="genVoucher()"></div>
+                
+                <div class="row" style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+                    <div class="form-group"><label>ADT</label><input type="number" id="vAdt" value="1" min="1" oninput="genVoucher()"></div>
+                    <div class="form-group"><label>CHD</label><input type="number" id="vChd" value="0" min="0" oninput="genVoucher()"></div>
+                    <div class="form-group"><label>INF</label><input type="number" id="vInf" value="0" min="0" oninput="genVoucher()"></div>
+                </div>
+
+                <div class="output-box">
+                    <label style="position: absolute; top: -8px; left: 15px; background: #0a0507; padding: 0 5px;">Vista Previa</label>
+                    <div id="outVoucher" class="output-text"></div>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn-copy" onclick="copiar('outVoucher', this)">📋 COPIAR</button>
+                    <button class="btn-wa" onclick="enviarWA('outVoucher')">📲 WHATSAPP</button>
+                </div>
+            </div>
+
+            <div id="tab-recibo" class="form-section">
+                <h2>Solicitud de Recibo</h2>
+                <div class="form-group"><label>Nombre del Pax</label><input type="text" id="rNom" oninput="genRecibo()"></div>
+                <div class="row">
+                    <div class="form-group"><label>Cédula / RIF</label><input type="text" id="rCed" oninput="genRecibo()"></div>
+                    <div class="form-group"><label>Teléfono</label><input type="text" id="rTlf" oninput="genRecibo()"></div>
+                </div>
+                <div class="row">
+                    <div class="form-group"><label>Abono ($)</label><input type="text" id="rAbo" placeholder="0.00" oninput="genRecibo()"></div>
+                    <div class="form-group"><label>Restante ($)</label><input type="text" id="rRes" placeholder="0.00" oninput="genRecibo()"></div>
+                </div>
+                <div class="form-group"><label>Descripción</label><textarea id="rDes" oninput="genRecibo()"></textarea></div>
+                <div class="row">
+                    <div class="form-group"><label>Fecha Pago</label><input type="date" id="rFec" oninput="genRecibo()"></div>
+                    <div class="form-group"><label>Método</label><input type="text" id="rMet" oninput="genRecibo()"></div>
+                </div>
+
+                <div class="output-box">
+                    <div id="outRecibo" class="output-text"></div>
+                </div>
+                
+                <div class="btn-group">
+                    <button class="btn-copy" onclick="copiar('outRecibo', this)">📋 COPIAR</button>
+                    <button class="btn-wa" onclick="enviarWA('outRecibo')">📲 WHATSAPP</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">¡Copiado!</div>
+
+    <script>
+        function switchTab(e, tabName) {
+            document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            e.currentTarget.classList.add('active');
+        }
+
+        function checkHotelManual() {
+            const sel = document.getElementById('vHotelSel').value;
+            const manualInput = document.getElementById('vHotelManual');
+            manualInput.style.display = (sel === "MANUAL") ? "block" : "none";
+            if (sel === "MANUAL") manualInput.focus();
+        }
+
+        function formatFecha(fechaStr) {
+            if(!fechaStr) return " ";
+            const p = fechaStr.split('-');
+            return `${p[2]}/${p[1]}/${p[0]}`;
+        }
+
+        function getAsesor() {
+            const s = document.getElementById('asesorSel').value.split('|');
+            return { nombre: s[0] || " ", tlf: s[1] || " " };
+        }
+
+        const getVal = (id) => document.getElementById(id).value.trim() || " ";
+
+        function updateAll() { genVoucher(); genRecibo(); }
+
+        function genVoucher() {
+            const asesor = getAsesor();
+            let hotel = document.getElementById('vHotelSel').value;
+            if (hotel === "MANUAL") hotel = getVal('vHotelManual');
+            
+            const txt = `*Solicitud vouchers de servicio*\n\n` +
+                `*Localizador:* ${getVal('vLoc')}\n\n` +
+                `*Hotel:* ${hotel.toUpperCase()}\n\n` +
+                `*Pasajero:* ${getVal('vPax').toUpperCase()}\n\n` +
+                `*Teléfono:* ${getVal('vTlf')}\n\n` +
+                `*Entrada:* ${formatFecha(document.getElementById('vIn').value)}\n` +
+                `*Salida:* ${formatFecha(document.getElementById('vOut').value)}\n\n` +
+                `*Habitación:* ${getVal('vHab')}\n\n` +
+                `*Personas:* ADT: ${getVal('vAdt')} | CHD: ${getVal('vChd')} | INF: ${getVal('vInf')}\n\n` +
+                `*Asesor:* ${asesor.nombre}\n` +
+                `*Contacto Asesor:* +${asesor.tlf}`;
+            document.getElementById('outVoucher').innerText = txt;
+        }
+
+        function genRecibo() {
+            const asesor = getAsesor();
+            const txt = `*SOLICITUD DE RECIBO DE PAGO*\n\n` +
+                `*Pax:* ${getVal('rNom').toUpperCase()}\n\n` +
+                `*Cédula/RIF:* ${getVal('rCed')}\n\n` +
+                `*Teléfono:* ${getVal('rTlf')}\n\n` +
+                `*Abono:* $${getVal('rAbo')}\n\n` +
+                `*Restante:* $${getVal('rRes')}\n\n` +
+                `*Descripción:* ${getVal('rDes')}\n\n` +
+                `*Fecha Pago:* ${formatFecha(document.getElementById('rFec').value)}\n\n` +
+                `*Método de pago:* ${getVal('rMet')}\n\n` +
+                `*Asesor:* ${asesor.nombre}\n` +
+                `*Contacto Asesor:* +${asesor.tlf}`;
+            document.getElementById('outRecibo').innerText = txt;
+        }
+
+        function copiar(id, btn) {
+            const text = document.getElementById(id).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById("toast");
+                toast.classList.add("show");
+                setTimeout(() => toast.classList.remove("show"), 2000);
+            });
+        }
+
+        function enviarWA(id) {
+            const text = encodeURIComponent(document.getElementById(id).innerText);
+            window.open(`https://wa.me/?text=${text}`, '_blank');
+        }
+
+        window.onload = () => {
+            const hoy = new Date().toISOString().split('T')[0];
+            document.getElementById('vIn').value = hoy;
+            document.getElementById('rFec').value = hoy;
+            updateAll();
+        };
+    </script>
+</body>
+</html>
